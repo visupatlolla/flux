@@ -39,9 +39,9 @@ const initialState = Slate.Raw.deserialize(
 
 const structuredFieldPlugin = StructuredField(); 
 
-const plugins = [ //defined inside the React Component
-    structuredFieldPlugin
-];
+//const plugins = [ //defined inside the React Component, does moving it change anything?
+//    structuredFieldPlugin
+//];
 /*const suggestions = [
   {
     key: 'jon-snow',
@@ -209,7 +209,7 @@ function createSubfield_StaticText(opts, text) {
 function createStructuredField(opts, type) {
 	const shortcut = {tumorSize: null, nodeSize: null, metastasis: null};
     const nodes = [
-		createSubfield_StaticText(opts, '#staging['),
+		createSubfield_StaticText(opts, '#' + type + '['),
 		createSubfield_Dropdown(opts, { items: ['T0', 'T1', 'T2', 'T3'], value: shortcut.tumorSize }),
 		createSubfield_Dropdown(opts, { items: ['N0', 'N1', 'N2', 'N3'], value: shortcut.nodeSize }),
 		createSubfield_Dropdown(opts, { items: ['M0', 'M1'], value: shortcut.metastasis}),
@@ -451,25 +451,22 @@ class FluxNotesEditor extends React.Component {
 
    // do not use onKeyDown, use auto-replace plugin, add to existing global 'plugins' list
    plugins = [
-        //structuredFieldPlugin,
+        structuredFieldPlugin,
      //   suggestionsPlugin,
         AutoReplace({
             trigger: '[',
             before: /(#staging)/i,
             transform: (transform, e, data, matches) => {
-                // these blocks are the plain text old structuredField
-            // const stagingBlock = getNodeById(stagingState.blocks, 'staging')
-            // const tNode = getNodeById(stagingBlock.nodes, staging.firstSelection);
-            // const newTrans = this.insertBlockAtLocation(transform, stagingBlock, tNode, staging.selectionAnchorOffset, staging.selectionFocusOffset); 
-                console.log("in #staging[ transform 2");
-               // return structuredFieldPlugin.transforms.insertStructuredField; //not right
-                //return this.onInsertStructuredField(); //executes but disappears - function uses a different Transform object
-                return structuredFieldPlugin.transforms.insertStructuredField(transform); // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
-      //      const sf = createStructuredField(null, 'staging');
-       //     console.log('sf created, is a ' + sf.kind);
-       //     return transform.insertBlock(sf);
-                //return transform.insertText('blockquote');
-            // return newTrans;
+                // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
+                return structuredFieldPlugin.transforms.insertStructuredField(transform); 
+            }
+        }),
+        AutoReplace({
+            trigger: '[',
+            before: /(#progression)/i,
+            transform: (transform, e, data, matches) => {
+                // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
+                return structuredFieldPlugin.transforms.insertStructuredField(transform); 
             }
         })
    ];
