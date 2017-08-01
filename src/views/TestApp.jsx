@@ -350,7 +350,7 @@ class TestApp extends Component {
         console.log(`Updated: ${m}`);
         (m !== "") && this.setState({metastasis: m});
   	}
-
+    // onKeyDown here isn't the answer either
 
     handleProgressionUpdate = (p) => { 
         console.log(`Updated progression:`);

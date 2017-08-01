@@ -4,6 +4,10 @@ import Lang from 'lodash'
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
 import { Set } from 'immutable'
+import AutoReplace from 'slate-auto-replace'
+
+//import SuggestionsPlugin from 'slate-suggestions'
+import { Editor } from 'slate'
 
 import './FluxNotesEditor.css';
 
@@ -33,11 +37,33 @@ const initialState = Slate.Raw.deserialize(
         }
 	]}, { terse: true });
 
-const structuredFieldPlugin = StructuredField();
+const structuredFieldPlugin = StructuredField(); 
 
-const plugins = [
-	structuredFieldPlugin
+const plugins = [ //defined inside the React Component
+    structuredFieldPlugin
 ];
+/*const suggestions = [
+  {
+    key: 'jon-snow',
+    value: '@Jon Snow',
+    suggestion: '@Jon Snow' // Can be string or react component 
+  },
+  // Some other suggestions 
+]
+
+const suggestionsPlugin = SuggestionsPlugin({
+  trigger: '@',
+  capture: /@([\w]*)/,
+  suggestions,
+  onEnter: (suggestion) => {
+    // Modify your state up to your use-cases 
+    return 'modifiedState'
+  }
+})
+ 
+// Extract portal component from the plugin 
+const { SuggestionPortal } = suggestionsPlugin
+ */
 
 const schema = {
     nodes: {
@@ -188,7 +214,8 @@ function createStructuredField(opts, type) {
 		createSubfield_Dropdown(opts, { items: ['N0', 'N1', 'N2', 'N3'], value: shortcut.nodeSize }),
 		createSubfield_Dropdown(opts, { items: ['M0', 'M1'], value: shortcut.metastasis}),
 		createSubfield_StaticText(opts, ']')
-	];
+    ];
+    console.log('createStructuredField: nodes is ' + nodes);
     return Slate.Block.create({
         type:  opts.typeStructuredField,
         nodes: nodes,
@@ -225,7 +252,7 @@ function createInlineBlock(text = '') {
  */
 function insertStructuredField(opts, transform) {
     const { state } = transform;
-	//console.log("insertStructuredField: " + state.selection.startKey);
+	console.log("insertStructuredField: " + state.selection.startKey);
     if (!state.selection.startKey) return false;
 
     // Create the structured-field node
@@ -285,6 +312,7 @@ function StructuredField(opts) {
         ];
 
         switch (data.key) {
+            // not the right place, this is keypresses inside the structuredField
         case KEY_ENTER:
             return onEnter(...args);
         case KEY_TAB:
@@ -421,6 +449,31 @@ class FluxNotesEditor extends React.Component {
 		}		
     }
 
+   // do not use onKeyDown, use auto-replace plugin, add to existing global 'plugins' list
+   plugins = [
+        //structuredFieldPlugin,
+     //   suggestionsPlugin,
+        AutoReplace({
+            trigger: '[',
+            before: /(#staging)/i,
+            transform: (transform, e, data, matches) => {
+                // these blocks are the plain text old structuredField
+            // const stagingBlock = getNodeById(stagingState.blocks, 'staging')
+            // const tNode = getNodeById(stagingBlock.nodes, staging.firstSelection);
+            // const newTrans = this.insertBlockAtLocation(transform, stagingBlock, tNode, staging.selectionAnchorOffset, staging.selectionFocusOffset); 
+                console.log("in #staging[ transform 2");
+               // return structuredFieldPlugin.transforms.insertStructuredField; //not right
+                //return this.onInsertStructuredField(); //executes but disappears - function uses a different Transform object
+                return structuredFieldPlugin.transforms.insertStructuredField(transform); // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
+      //      const sf = createStructuredField(null, 'staging');
+       //     console.log('sf created, is a ' + sf.kind);
+       //     return transform.insertBlock(sf);
+                //return transform.insertText('blockquote');
+            // return newTrans;
+            }
+        })
+   ];
+
     onChange = (state) => {
         this.setState({
             state: state
@@ -428,6 +481,7 @@ class FluxNotesEditor extends React.Component {
     }
 
     onInsertStructuredField = () => {
+        console.log("in onInsertStructuredField"); // seen. calling this is not enough.
         let { state } = this.state;
 
         this.onChange(
@@ -454,13 +508,17 @@ class FluxNotesEditor extends React.Component {
 				{this.renderNormalToolbar()}
                 <Slate.Editor
                     placeholder={'Enter your clinical note here or choose a template to start from...'}
-                    plugins={plugins}
+                    plugins={this.plugins}
                     state={state}
                     onChange={this.onChange}
                     schema={schema}
                 />
+               
+                
             </div>
         );
+// <SuggestionPortal 
+//                state={this.state.state} />
     }
 }
 
