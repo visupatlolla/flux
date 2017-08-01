@@ -7,15 +7,21 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 // Application components:
 import NavBar from '../nav/NavBar';
-//import TestEditor from '../test/TestEditor';
 import FluxNotesEditor from '../notes/FluxNotesEditor';
-//import Example from '../test/Example';
-//import ClinicalNotes from '../notes/ClinicalNotes';
-import DataSummaryPanel from '../summary/DataSummaryPanel';
+import TestDataSummaryPanel from '../summary/TestDataSummaryPanel';
 import FormTray from '../forms/FormTray';
-import TimelinePanel from '../timeline/TimelinePanel';
+import TestTimelinePanel from '../timeline/TestTimelinePanel';
+// Shortcut Classes
+import ProgressionShortcut from '../shortcuts/ProgressionShortcut';
+import ToxicityShortcut from '../shortcuts/ToxicityShortcut';
+import StagingShortcut from '../shortcuts/StagingShortcut';
+// Data model
+import Patient from '../patient/Patient';
+import SummaryMetadata from '../summary/SummaryMetadata';
+// Lodash component
+import Lang from 'lodash'
 
-import staging from '../../lib/staging';
+//import staging from '../../lib/staging';
 import moment from 'moment';
 
 import './TestApp.css';
@@ -23,311 +29,98 @@ import './TestApp.css';
 class TestApp extends Component {
     constructor(props) {
         super(props);
-
-        this.state = {
-            /* staging */
-            tumorSize: '',
-            nodeSize: '',
-            metastasis: '',
+		
+		this.getItemListForProcedures = this.getItemListForProcedures.bind(this);
+		this.summaryMetadata = new SummaryMetadata();
+		
+	    this.state = {
             SummaryItemToInsert: '',
             withinStructuredField: null,
-			selectedText: null,
-            patient: {
-                photo: "./DebraHernandez672.jpg",
-                name: "Debra Hernandez672",
-                mrn: "026-DH-678944",
-                dateOfBirth: "05 APR 1966",
-                administrativeSex: "Female",
-                address: {
-                    city: "Boston",
-                    state: "MA"
-                },
-                previousNotes: [
-                    {
-                        date: "02.AUG.2015",
-                        subject: "Clinical follow-up",
-                        hospital: "Dana Farber Cancer Institute",
-                        clinician: "Dr. Smith"
-                    },
-                    {
-                        date: "12.JUL.2012",
-                        subject: "Consult",
-                        hospital: "Dana Farber Cancer Institute",
-                        clinician: "Dr. Zheng"
-                    },
-                    {
-                        date: "20.JUN.2012",
-                        subject: "Clinical post-op",
-                        hospital: "Brigham and Women's Hospital",
-                        clinician: "Dr. Smith"
-                    },
-                    {
-                        date: "16.MAY.2012",
-                        subject: "Clinical follow-up",
-                        hospital: "Dana Farber Cancer Institute",
-                        clinician: "Dr. Strauss"
-                    }
-                ]
-            },
-            conditions: [
-                {
-                    name: "Lobular carcinoma of the breast",
-                    codes: [
-                        {
-                            system: "SNOMED-CT",
-                            code: "278054005",
-                            display: "Infiltrating lobular carcinoma of breast"
-                        }
-                    ]
-                }
-            ],
-            diagnosis: [
-                {
-                    name: "Name",
-                    display: "Lobular carcinoma of the breast"
-                },
-                {
-                    name: "Stage",
-                    display: ""
-                }
-            ],
-            pathology: [
-                {
-                    name: "Color",
-                    display: ""
-                },
-                {
-                    name: "Weight",
-                    display: ""
-                },
-                {
-                    name: "Size",
-                    display: ""
-                },
-                {
-                    name: "Tumor Margins",
-                    display: ""
-                },
-                {
-                    name: "Histological Grade",
-                    display: "HG2"
-                },
-                {
-                    name: "Receptor Status: ER",
-                    display: "+"
-                },
-                {
-                    name: "Receptor Status: PR",
-                    display: "+"
-                },
-                {
-                    name: "Receptor Status: HER2",
-                    display: ""
-                }
-            ],
-            genetics: [
-                {
-                    name: "Oncotype DX Recurrence Score",
-                    display: ""
-                },
-                {
-                    name: "Genetic testing",
-                    display: ""
-                }
-            ],
-            // NOTE: moment.js time objects are used for all timeline items because
-            // native Date() objects cause a strange issue where timeline items do not
-            // disappear from the left side of the timeline as you scroll.
-            medications: [
-                {
-                    name: "Adriamycin",
-                    dosage: "6 cycles of 60mg/m2",
-                    startDate: moment('2012-02-10'),
-                    endDate: moment('2012-08-20')
-                },
-                {
-                    name: "Cytoxin",
-                    dosage: "6 cycles of 10mg/kg",
-                    startDate: moment('2012-02-10'),
-                    endDate: moment('2012-08-20')
-                },
-                {
-                    name: "Tamoxifen",
-                    dosage: "20mg once daily",
-                    startDate: moment('2013-11-01'),
-                    endDate: moment('2016-08-13')
-                },
-                {
-                    name: "Letrozole",
-                    dosage: "2.5mg once daily",
-                    startDate: moment('2015-01-10'),
-                    endDate: moment('2016-01-10')
-                },
-                {
-                    name: "Coumadin",
-                    dosage: "2mg once daily",
-                    startDate: moment('2015-09-05'),
-                    endDate: moment('2017-06-01')
-                },
-                {
-                    name: "Aromasin",
-                    dosage: "25mg once daily",
-                    startDate: moment('2017-06-05'),
-                    endDate: moment('2018-01-01')
-                }
-            ],
-            procedures: [
-                {
-                    name: 'Mammogram',
-                    startDate: moment('2012-01-13')
-                },
-                {
-                    name: 'Radiation',
-                    startDate: moment('2012-07-12'),
-                    endDate: moment('2012-08-16')
-                },
-                {
-                    name: 'Surgery',
-                    startDate: moment('2012-09-20'),
-                    display: "Lumpectomy / sentinel / lymph node biopsy"
-                },
-                {
-                    name: 'Mammogram',
-                    startDate: moment('2013-10-04')
-                }
-            ],
-            keyDates: [
-                {
-                    name: 'Diagnosis',
-                    startDate: moment('2012-01-13')
-                },
-                {
-                    name: 'Recurrence',
-                    startDate: moment('2013-10-12')
-                }
-            ],
-            progression: [
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Responding Disease',
-                    reason: [
-                        "physical exam"
-                    ],
-                    startDate: moment('2012-06-13')
-
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Disease Free',
-                    reason: [
-                        "imaging",
-                        "physical exam"],
-                    startDate: moment('2012-11-01'),
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Progressing Disease',
-                    reason: [
-                        "imaging"
-                    ],
-                    startDate: moment('2014-04-17'),
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Responding Disease',
-                    reason: [
-                        "pathology"
-                    ],
-                    startDate: moment('2014-07-03'),
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Stable',
-                    reason: [
-                        "pathology",
-                        "symptoms"
-                    ],
-                    startDate: moment('2015-06-14'),
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Stable',
-                    reason: [
-                        "physical exam",
-                        "symptoms"
-                    ],
-                    startDate: moment('2016-08-11'),
-                },
-                {
-                    id: Math.floor(Math.random() * Date.now()),
-                    status: 'Progressing Disease',
-                    reason: [
-                        "pathology",
-                        "imaging",
-                        "symptoms"
-                    ],
-                    startDate: moment('2017-05-15')
-                }
-            ]
+            selectedText: null,
+            // Current shortcutting: 
+            currentShortcut: null,
+			currentConditionEntry: null,
+			summaryMetadata: this.summaryMetadata.getMetadata(),
+            patient: new Patient()
         };
-
-    }
-    /* 
-     * Add a progression event to the current array of progression events
-     */ 
-    addProgressionEvent = (progressionEvent) => { 
-        // Make sure this event doesn't already exist in the app
-        if (! this.state.progression.some((event) => event.id === progressionEvent.id)) { 
-            console.log(`in addProgressionEvent; this is a new event; adding to array`);
-            const newProgression = this.state.progression;
-            newProgression.push(progressionEvent);
-            newProgression.sort(this._timeSorter);
-            this.setState({
-                progression: newProgression
-            });
-        } 
-        // else do nothing
     }
 
+	getItemListForProcedures = (patient, currentConditionEntry) => {
+		let procedures = patient.getProceduresForConditionChronologicalOrder(currentConditionEntry);
+		return procedures.map((p, i) => {
+			if (Lang.isObject(p.occurrenceTime)) {
+				return {name: p.specificType.coding.displayText, value: p.occurrenceTime.timePeriodStart + " to " + p.occurrenceTime.timePeriodEnd};
+			} else {
+				return {name: p.specificType.coding.displayText, value: p.occurrenceTime };
+			}
+		});
+	}
+
     /* 
-     * update a progression event if it's in the current array of progression events
-     */ 
-    updateProgressionEvent = (id, progressionEvent) => { 
-        // If we can find an event that shares the current id, update it
-        const oldEventIndex = this.state.progression.findIndex((event) => event.id === id)
-        if (oldEventIndex !== -1) {
-            console.log('in updateProgressionEvent; we found an equiv event; updating');
-            let newProgression = [...this.state.progression];
-            newProgression[oldEventIndex] = progressionEvent;
+     * Change the current shortcut to be the new type of shortcut  
+     */
+    changeCurrentShortcut = (shortcutType) => {
+        if (Lang.isNull(shortcutType)) {   
             this.setState({
-                progression: newProgression
+                currentShortcut: null
             });
+        } else { 
+            switch (shortcutType.toLowerCase()) { 
+            case "progression":
+                this.setState({
+                    currentShortcut: new ProgressionShortcut(this.handleProgressionShortcutUpdate)
+                });
+                break;
+            case "toxicity":
+                this.setState({
+                    currentShortcut: new ToxicityShortcut(this.handleProgressionShortcutUpdate)
+                });
+                break;
+            case "staging":
+                this.setState({
+                    currentShortcut: new StagingShortcut(this.handleStagingShortcutUpdate)
+                });
+                break;
+            default:
+                console.error(`Error: Trying to change shortcut to ${shortcutType.toLowerCase()}, which is an invalid shortcut type`);
+            }
         }
     }
 
+    /* 
+     * Update the current Progression Shortcut
+     */
+    handleProgressionShortcutUpdate = (s) =>{
+        console.log(`Updated Progression: ${s}`);
+        (s !== "") && this.setState({progressionShortcut: s});
+    }
+    /* 
+     * Update the current Staging Shortcut  
+     */
+    handleStagingShortcutUpdate = (s) =>{
+        console.log(`Updated Staging: ${s}`);
+        (s !== "") && this.setState({stagingShortcut: s});
+    }
+
     handleStructuredFieldEntered = (field) => {
-        // console.log("structured field entered: " + field);
+        console.log("structured field entered: " + field);
         this.setState({
             withinStructuredField: field
         })
     }
 
     handleStructuredFieldExited = (field) => {
-        // console.log("structured field exited: " + field);
+        console.log("structured field exited: " + field);
         this.setState({
             withinStructuredField: null
         })
     }
-	
-	handleSelectionChange = (selectedText) => {
-		//console.log("TestApp. selectedText: " + selectedText);
-		this.setState({
-			selectedText: selectedText
-		})
-	}
-
-    componentDidUpdate = (a, b) => {
-        // Nothing right now
+    
+    handleSelectionChange = (selectedText) => {
+        //console.log("TestApp. selectedText: " + selectedText);
+        this.setState({
+            selectedText: selectedText
+        })
     }
 
     handleSummaryItemSelected = (itemText) =>{
@@ -336,58 +129,11 @@ class TestApp extends Component {
         }
     }
 
-  	handleStagingTUpdate = (t) => {
-        console.log(`Updated: ${t}`);
-        (t !== "") && this.setState({tumorSize: t});
-  	}
-
-  	handleStagingNUpdate = (n) => {
-        console.log(`Updated: ${n}`);
-        (n !== "") && this.setState({nodeSize: n});
-  	}
-
-  	handleStagingMUpdate = (m) => {
-        console.log(`Updated: ${m}`);
-        (m !== "") && this.setState({metastasis: m});
-  	}
-    // onKeyDown here isn't the answer either
-
-    handleProgressionUpdate = (p) => { 
-        console.log(`Updated progression:`);
-        console.log(p);
-        if (p !== "" && this.state.progression.some(existingProgression => existingProgression.id === p.id)) {
-            console.log("this is an updated event");
-            this.updateProgressionEvent(p.id, p);
-        } else if (p !== "") { 
-            console.log("this is a new progression event");
-            this.addProgressionEvent(p)
-        }
-        // else do nothing
-    }
-
-    handleNewProgression = (p) => { 
-        console.log(`This is a new progression`);
-        (p !== "") && this.addProgressionEvent(p)
-    }
-
     render() {
-        let diagnosis = this.state.diagnosis;
-
-        /* update staging if captured */
-        const t = this.state.tumorSize;
-        const n = this.state.nodeSize;
-        const m = this.state.metastasis;
-        const ps = staging.breastCancerPrognosticStage(t, n, m);
-
-        if (ps) {
-            diagnosis[1].display = `${titlecase(t)} | ${titlecase(n)} | ${titlecase(m)} / Stage ${ps}`;
-        } else {
-            diagnosis[1].display = "";
-        }
-
         // Timeline events are a mix of key dates and progression
-        const timelineEvents = this.state.keyDates.concat(this.state.progression).sort(this._timeSorter);
-
+        //const timelineEvents = this.state.keyDates.concat(this.state.progression).sort(this._timeSorter);
+		//const timelineEvents = []; // TODO
+		
         return (
             <MuiThemeProvider muiTheme={getMuiTheme(lightBaseTheme)}>
                 <div className="TestApp">
@@ -395,41 +141,42 @@ class TestApp extends Component {
                     <Grid className="TestApp-content" fluid>
                         <Row center="xs">
                             <Col sm={4}>
-                                <DataSummaryPanel
-                                    patient={this.state.patient}
-                                    conditions={this.state.conditions}
-                                    diagnosis={diagnosis}
-                                    keyDates={this.state.keyDates}
-                                    procedures={this.state.procedures}
-                                    pathology={this.state.pathology}
-                                    genetics={this.state.genetics}
-									progression={this.state.progression}
+                                <TestDataSummaryPanel
+                                    // Handle updates
                                     onItemClicked={this.handleSummaryItemSelected}
+                                    // Properties
+                                    allowItemClick={this.state.currentShortcut == null}
+									summaryMetadata={this.state.summaryMetadata}
+                                    patient={this.state.patient}
                                 />
                             </Col>
                             <Col sm={5}>
-								<FluxNotesEditor />
+                                <FluxNotesEditor
+                                    // Update functions
+                                    onSelectionChange={this.handleSelectionChange}
+                                    changeCurrentShortcut={this.changeCurrentShortcut}
+                                    // Properties
+                                    currentShortcut={this.state.currentShortcut}
+                                    itemToBeInserted={this.state.SummaryItemToInsert}
+                                    patient={this.state.patient}
+                                />
                             </Col>
                             <Col sm={3}>
                                 <FormTray
                                     // Update functions
-                                    changeCurrentShortcut={this.changeCurrentShortcut}
+                                    changeShortcut={this.changeCurrentShortcut}
                                     // Properties
-                                    withinStructuredField={this.state.withinStructuredField}
-                                    selectedText={this.state.selectedText}
+                                    currentShortcut={this.state.currentShortcut}
                                     patient={this.state.patient}
-
-                                    progressionShortcut={this.state.progressionShortcut}
-                                    stagingShortcut={this.state.stagingShortcut}
+                                    selectedText={this.state.selectedText}
+                                    withinStructuredField={this.state.withinStructuredField}
                                 />
                             </Col>
                         </Row>
                         <Row center="xs">
                             <Col sm={12}>
-                                <TimelinePanel
-                                    medications={this.state.medications}
-                                    procedures={this.state.procedures}
-                                    events={timelineEvents}
+                                <TestTimelinePanel
+                                    patient={this.state.patient}
                                 />
                             </Col>
                         </Row>
@@ -438,22 +185,12 @@ class TestApp extends Component {
             </MuiThemeProvider>
         );
     }
-
-    _timeSorter(a, b) {
-        if (a.startDate < b.startDate) {
-            return -1;
-        }
-        if (a.startDate > b.startDate) {
-            return 1;
-        }
-        return 0;
-    }
 }
 
 export default TestApp;
 
-function titlecase(label) {
+/*function titlecase(label) {
   return label.toLowerCase().split(' ').map(function(word) {
     return word.replace(word[0], word[0].toUpperCase());
   }).join(' ');
-}
+}*/

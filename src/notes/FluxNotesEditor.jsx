@@ -1,9 +1,14 @@
 import React from 'react';
 import Slate from 'slate';
 import Lang from 'lodash'
+import { Set } from 'immutable'
+import { Row, Col } from 'react-flexbox-grid';
+import EditorToolbar from './EditorToolbar';
+// Material UI component imports
+import Paper from 'material-ui/Paper';
+import Divider from 'material-ui/Divider';
 import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
-import { Set } from 'immutable'
 import AutoReplace from 'slate-auto-replace'
 
 //import SuggestionsPlugin from 'slate-suggestions'
@@ -19,22 +24,24 @@ const KEY_UP        = 'up';
 const KEY_LEFT		= 'left';
 const KEY_RIGHT		= 'right';
 
+
+// This forces the initial block to be inline instead of a paragraph. When insert structured field, prevents adding new lines
 const initialState = Slate.Raw.deserialize(
 	{     nodes: [
-        {
-            kind: 'block',
-            type: 'inline',
-            nodes: [
-                {
-                    kind: 'text',
-                    ranges: [
-                        {
-                            'text': ""
-                        }
-                    ]
-                }
-            ]
-        }
+		{
+			kind: 'block',
+			type: 'inline',
+			nodes: [
+				{
+					kind: 'text',
+					ranges: [
+						{
+							'text': ""
+						}
+					]
+				}
+			]
+		}
 	]}, { terse: true });
 
 const structuredFieldPlugin = StructuredField(); 
@@ -75,6 +82,7 @@ const schema = {
 	}
 };
 
+
 function onEnter(event, data, state, opts) {
 	console.log('onEnter');
 /*    event.preventDefault();
@@ -111,43 +119,76 @@ function onTab(event, data, state, opts) {
 
 function onBackspace(event, data, state, opts) {
 	console.log('onBackspace');
-/*    const { startBlock, startOffset,
+
+    const { startBlock, startOffset,
         isCollapsed, endBlock } = state;
+    //
+    // // If a cursor is collapsed at the start of the block, do nothing
+    // if (startOffset === 0 && isCollapsed) {
+    //     event.preventDefault();
+    //     return state;
+    // }
+    //
+    // // If "normal" deletion, we continue
+    // if (startBlock === endBlock) {
+    //     return;
+    // }
+    //
+    // // If cursor is between multiple blocks,
+    // // we clear the content of the cells
+    // event.preventDefault();
+    //
+    // const { blocks, focusBlock } = state;
+    // const transform = blocks.reduce(
+    //     (tr, block) => {
+    //         if (block.type !== opts.typeCell) {
+    //             return transform;
+    //         }
+    //
+    //         const cellRange = Slate.Selection.create()
+    //             .moveToRangeOf(block);
+    //
+    //         return tr.deleteAtRange(cellRange);
+    //     },
+    //     state.transform()
+    // );
+    //
+    // // Clear selected cells
+    // return transform
+    //     .collapseToStartOf(focusBlock)
+    //     .apply();
 
-    // If a cursor is collapsed at the start of the block, do nothing
-    if (startOffset === 0 && isCollapsed) {
-        event.preventDefault();
-        return state;
-    }
+	console.log("[onBackspace] state] " + state);
 
-    // If "normal" deletion, we continue
-    if (startBlock === endBlock) {
-        return;
-    }
+	// const newState = state.transform()
+	// 	.removeNodeByKey(state.blocks._tail.array[0].key)
+	// 	.apply()
+    //
+	// return newState;
 
-    // If cursor is between multiple blocks,
-    // we clear the content of the cells
-    event.preventDefault();
+	const subfield = state.startBlock;
 
-    const { blocks, focusBlock } = state;
-    const transform = blocks.reduce(
-        (tr, block) => {
-            if (block.type !== opts.typeCell) {
-                return transform;
-            }
+	let sf = null;
 
-            const cellRange = Slate.Selection.create()
-                .moveToRangeOf(block);
+	if (subfield.type === opts.typeStructuredField) {
+		sf = subfield;
 
-            return tr.deleteAtRange(cellRange);
-        },
-        state.transform()
-    );
+		console.log("in structured field. sf: ");
+		console.log(sf);
+	} else {
 
-    // Clear selected cells
-    return transform
-        .collapseToStartOf(focusBlock)
-        .apply();*/
+		sf = state.document.getParent(subfield.key);
+
+		console.log("not in structured field. sf: ");
+		console.log(sf);
+	}
+
+	const newState = state.transform()
+		// .moveToRangeOf(state.blocks._tail.array[0])
+		.moveToRangeOf(sf)
+		.delete()
+		.apply()
+	return newState;
 }
 
 function onLeftRight(event, data, state, opts) {
@@ -216,13 +257,22 @@ function createStructuredField(opts, type) {
 		createSubfield_StaticText(opts, ']')
     ];
     console.log('createStructuredField: nodes is ' + nodes);
-    return Slate.Block.create({
+
+    let sf = Slate.Block.create({
         type:  opts.typeStructuredField,
         nodes: nodes,
         data: {
             shortcut
         }
     });
+
+	// console.log("sf size: " + sf.nodes.size);
+	// // delete first
+	// sf.nodes = sf.nodes.delete(0).delete(sf.nodes.size -1);
+    //
+	// console.log("sf size: " + sf.nodes.size);
+
+	return sf;
 }
 
 /*function createParagraphBlock() {
@@ -258,12 +308,13 @@ function insertStructuredField(opts, transform) {
     // Create the structured-field node
     const sf = createStructuredField(opts, 'staging');
 
+	console.log("[insertStructuredField] sf");
+	console.log(sf);
+
 	if (sf.kind === 'block') {
-		return transform
-			.insertBlock(sf);
+		return [transform.insertBlock(sf), sf.key];
 	} else {
-		return transform
-			.insertInline(sf);
+		return [transform.insertInline(sf), sf.key];
 	}
 }
 
@@ -326,18 +377,27 @@ function StructuredField(opts) {
 		case KEY_RIGHT:
 			return onLeftRight(...args);
 		default:
-			console.log("onKeyDown: " + data.key);
-			console.log(state.selection);
+			//let chr = String.fromCharCode((96 <= data.code) ? (data.code - 48 * Math.floor(data.code / 48)) : data.code);
+			//console.log("onKeyDown: " + data.key + " / " + chr);
+			console.log(data);
+			//console.log(state.selection);
 			event.preventDefault();
 			const subfield = state.startBlock;
-			console.log(subfield.type + " => " + subfield.key);
-			console.log(state.selection.type + " => " + state.selection.key);
+			//console.log(subfield.type + " => " + subfield.key);
+			//console.log(state.selection.type + " => " + state.selection.key);
 			let sf = null;
 			if (subfield.type === opts.typeStructuredField) {
 				sf = subfield;
+
+				console.log("in structured field. sf: " + sf);
 			} else {
 				//console.log("subfield key = " + subfield.key);
+
+
 				sf = state.document.getParent(subfield.key);
+
+				console.log("not in structured field. sf: " + sf);
+
 				//console.log("subfield parent: " + sf);
 				//console.log(sf.type + " --> key=" + sf.key);
 			}
@@ -359,13 +419,22 @@ function StructuredField(opts) {
 			} else {
 				// TODO
 				// insertTextAtRange
-				const newState = state
-					.transform()
-					.collapseToStartOf(nextSibling).focus()
-					.insertText(data.key)
-					.apply();
-				console.log('found next sibling and inserted text at start of it');
-				return newState;
+				if ((data.code > 47 && data.code < 58)   || // number keys
+					data.code === 32 || data.code === 13   || // spacebar & return key(s) (if you want to allow carriage returns)
+					(data.code > 64 && data.code < 91)   || // letter keys
+					(data.code > 95 && data.code < 112)  || // numpad keys
+					(data.code > 185 && data.code < 193) || // ;=,-./` (in order)
+					(data.code > 218 && data.code < 223)) {
+					const newState = state
+						.transform()
+						.collapseToStartOf(nextSibling).focus()
+						.insertText(String.fromCharCode(data.code))
+						.apply();
+					console.log('found next sibling and inserted text at start of it');
+					return newState;
+				} else {
+					return;
+				}
 			}
 			
 			//return;
@@ -383,12 +452,13 @@ function StructuredField(opts) {
 			},
 			sf_subfield_statictext:  props => {
 				let text = props.node.get('data').get('text') || '';
+
 				return <span className='sf_subfield_statictext' {...props.attributes}>{text}</span>; //props.children
 			},
 			sf_subfield_dropdown:    props => {
 				//console.log(props);
 				let items = props.node.get('data').get('items');
-				let value = props.node.get('data').get('value');
+				//let value = props.node.get('data').get('value');
 				return (
 					<span className='sf-subfield' {...props.attributes}><select>
 						{items.map(function(item, index) {
@@ -446,8 +516,13 @@ class FluxNotesEditor extends React.Component {
 		// Set the initial state when the app is first constructed.
 		this.state = {
 			state: initialState //Slate.Raw.deserialize(stateJson, { terse: true })
-		}		
-    }
+		}
+	}
+
+	componentDidUpdate = (prevProps, prevState) => {
+		console.log("component did update");
+		console.log(this.state.state.document);
+	}
 
    // do not use onKeyDown, use auto-replace plugin, add to existing global 'plugins' list
    plugins = [
@@ -476,44 +551,180 @@ class FluxNotesEditor extends React.Component {
             state: state
         });
     }
-
+	
     onInsertStructuredField = () => {
         console.log("in onInsertStructuredField"); // seen. calling this is not enough.
         let { state } = this.state;
 
+		let  result = structuredFieldPlugin.transforms.insertStructuredField(state.transform());
+
+		//let sf = result[0].state.document.getDescendant(result[1]);
+
+		//let sf_firstChild = sf.nodes.get(0).key;
+
+		console.log("[onInsertStructuredField] result");
+		console.log(result[0]);
+
+		// Attempt to delete remove structured field first child but this did not work. First child is the $#8202 unicode and for some reason
+		// this gets added when structured field is created. When delete structured field, this character remains as part of the structured field
+		// result[0].removeNodeByKey(sf_firstChild);
+
+		let finalResult = result[0].apply();
+
         this.onChange(
-            structuredFieldPlugin.transforms.insertStructuredField(state.transform())
-                .apply()
+			finalResult
         );
+
     }
 
-    renderNormalToolbar = () => {
+    renderTemporaryToolbar = () => {
         return (
             <div>
                 <button onClick={this.onInsertStructuredField}>Insert Shortcut</button>
             </div>
         );
     }
+	
+  /**
+   * Render the dropdown of suggestions.
+   */
+  renderDropdown = () => { 
+/*    return (
+      <div className="menu autocomplete-menu">
+        {this.state.autocompleteMatches.map((match, index) => {
+          const isActive = (this.state.currentAutocompleteMatch === index); 
+
+          return (
+              <div className="menu-item" key={index} data-active={isActive} onMouseOver={ () => { this.updateCurrentAutocompleteMatch(index)}} onClick={() => this.insertCurrentAutocompleteMatch()}>
+                {match}
+              </div>
+          );}
+        )}
+      </div> 
+    )*/
+		return <div></div>;
+  }
+
+  /**
+   * Render the dropdown of shorthand suggestions.
+   */
+  renderShorthandDropdown = () => { 
+/*    return (
+      <div className="menu shorthand-menu">
+        {this.state.shorthandMatches.map((match, index) => {
+          const isActive = (this.state.currentShorthandMatch === index); 
+
+          return (
+              <div className="menu-item" key={index} data-active={isActive} onMouseOver={ () => { this.updateCurrentShorthandMatch(index)}} onClick={() => this.insertCurrentShorthandMatch()}>
+                {match}
+              </div>
+          );}
+        )}
+      </div> 
+    )*/
+	return <div></div>;
+  }
+
+  // This gets called when the before the component receives new properties
+  componentWillReceiveProps = (nextProps) => {
+
+    if (this.props.itemToBeInserted !== nextProps.itemToBeInserted) {
+      this.handleSummaryUpdate(nextProps.itemToBeInserted);
+    }
+  }
+  
+  /*
+   * Handle updates when we have a new
+   */
+  handleSummaryUpdate = (itemToBeInserted) => {
+    const currentState = this.state.state;
+    const state = currentState
+        .transform()
+        .insertText(itemToBeInserted)
+		.focus()
+        .apply();
+    this.setState({ state: state });
+  }
+
+	/**
+   * Check if the current selection has a mark with `type` in it.
+   */
+  handleMarkCheck = (type) => {
+    const { state } = this.state;
+    return state.marks.some(mark => mark.type === type);
+  }
+
+  /**
+   * Check if the any of the currently selected blocks are of `type`.
+   */
+  handleBlockCheck = (type) => {
+    const { state } = this.state;
+    return state.blocks.some(node => node.type === type);
+  }
 
     render = () => {
         let { state } = this.state;
         //let isStructuredField = structuredFieldPlugin.utils.isSelectionInStructuredField(state);
+		let noteDescriptionContent = null;
+		if (this.props.patient == null) {
+			noteDescriptionContent = "";
+		} else {
+			noteDescriptionContent = (
+			  <div id="note-description">
+				<Row>
+				  <Col xs={5}>
+					<h1 id="note-title">Pathology Assessment</h1>
+				  </Col>
+				  <Col xs={2}>
+					<p className="note-description-detail-name">Date</p>
+					<p className="note-description-detail-value">20 June 2017</p>
+				  </Col>
+				  <Col xs={2}>
+					<p className="note-description-detail-name">Source</p>
+					<p className="note-description-detail-value">Pathology Report</p>
+				  </Col>
+				  <Col xs={3}>
+					<p className="note-description-detail-name">Signed By</p>
+					<p className="note-description-detail-value">Dr. Brenda Zeiweger</p>
+				  </Col>
+				</Row>
+	  
+		  <Divider className="divider" />
+			  </div>
+			);
+		}
+		/**
+		 * Render the editor, toolbar, dropdown and description for note
+		 */
+		return (
+		  <div id="clinical-notes" className="dashboard-panel">
+			<Paper className="panel-content trio">
+			{noteDescriptionContent}
+			<div className="MyEditor-root">
+			  <EditorToolbar
+				onMarkCheck={this.handleMarkCheck} 
+				onBlockCheck={this.handleBlockCheck}
 
-                //{isTable? this.renderTableToolbar() : this.renderNormalToolbar()}
-        return (
-            <div id="fluxnoteseditor">
-				{this.renderNormalToolbar()}
-                <Slate.Editor
-                    placeholder={'Enter your clinical note here or choose a template to start from...'}
+				onMarkUpdate={this.handleMarkUpdate} 
+				onBlockUpdate={this.handleBlockUpdate}
+				patient={this.props.patient}
+			  />
+				{this.renderTemporaryToolbar()}
+			  {this.renderDropdown()}
+			  {this.renderShorthandDropdown()}
+				<Slate.Editor
+					placeholder={'Enter your clinical note here or choose a template to start from...'}
                     plugins={this.plugins}
-                    state={state}
-                    onChange={this.onChange}
-                    schema={schema}
-                />
+					state={state}
+					onChange={this.onChange}
+					schema={schema}
+				/>
                
                 
-            </div>
-        );
+			</div>
+		  </Paper>
+		  </div>
+		);
 // <SuggestionPortal 
 //                state={this.state.state} />
     }
