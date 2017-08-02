@@ -11,7 +11,7 @@ import DropDownMenu from 'material-ui/DropDownMenu';
 import MenuItem from 'material-ui/MenuItem';
 import AutoReplace from 'slate-auto-replace'
 
-//import SuggestionsPlugin from 'slate-suggestions'
+import SuggestionsPlugin from 'slate-suggestions'
 import { Editor } from 'slate'
 
 import './FluxNotesEditor.css';
@@ -49,28 +49,36 @@ const structuredFieldPlugin = StructuredField();
 //const plugins = [ //defined inside the React Component, does moving it change anything?
 //    structuredFieldPlugin
 //];
-/*const suggestions = [
+const suggestions = [
   {
     key: 'jon-snow',
     value: '@Jon Snow',
     suggestion: '@Jon Snow' // Can be string or react component 
   },
   // Some other suggestions 
-]
+ {
+    key: 'johnnycake',
+    value: '@Johnnycake',
+    suggestion: '@Johnnycake' // Can be string or react component 
+  }
+];
 
 const suggestionsPlugin = SuggestionsPlugin({
   trigger: '@',
   capture: /@([\w]*)/,
   suggestions,
   onEnter: (suggestion) => {
-    // Modify your state up to your use-cases 
+	// Modify your state up to your use-cases 
+	console.log("Suggestion being triggered! TORCH------------------------");
+	console.log("Suggestion being triggered! TORCH-----------------------");
+	console.log("Suggestion being triggered! TORCH----------------------");
     return 'modifiedState'
   }
-})
+});
  
 // Extract portal component from the plugin 
-const { SuggestionPortal } = suggestionsPlugin
- */
+const { SuggestionPortal } = suggestionsPlugin;
+ 
 
 const schema = {
     nodes: {
@@ -248,21 +256,41 @@ function createSubfield_StaticText(opts, text) {
  * @return {State.Block}
  */
 function createStructuredField(opts, type) {
-	const shortcut = {tumorSize: null, nodeSize: null, metastasis: null};
-    const nodes = [
-		createSubfield_StaticText(opts, '#' + type + '['),
-		createSubfield_Dropdown(opts, { items: ['T0', 'T1', 'T2', 'T3'], value: shortcut.tumorSize }),
-		createSubfield_Dropdown(opts, { items: ['N0', 'N1', 'N2', 'N3'], value: shortcut.nodeSize }),
-		createSubfield_Dropdown(opts, { items: ['M0', 'M1'], value: shortcut.metastasis}),
-		createSubfield_StaticText(opts, ']')
-    ];
+    var shortcut;
+	var nodes;
+	console.log('deciding on type = '+ type);
+    if(type === 'staging'){
+        shortcut = {tumorSize: null, nodeSize: null, metastasis: null};
+        nodes = [
+            createSubfield_StaticText(opts, '#' + type + '['),
+            createSubfield_Dropdown(opts, { items: ['T0', 'T1', 'T2', 'T3'], value: shortcut.tumorSize }),
+            createSubfield_Dropdown(opts, { items: ['N0', 'N1', 'N2', 'N3'], value: shortcut.nodeSize }),
+            createSubfield_Dropdown(opts, { items: ['M0', 'M1'], value: shortcut.metastasis}),
+            createSubfield_StaticText(opts, ']')
+        ];
+    } else if(type === 'progression'){
+		//#progression[Stable based on Imaging, Symptoms]
+		shortcut = { status: null, reasons: null };
+		nodes = [
+			createSubfield_StaticText(opts, '#' + type + '['),
+			createSubfield_Dropdown(opts, { items: ['Complete Response', 'Complete Resection', 'Responding', 'Stable', 'Progressing', 'Inevaluable'], value: shortcut.status }),
+			createSubfield_StaticText(opts, ' based on '),
+			createSubfield_Dropdown(opts, { items: ['Pathology', 'Imaging', 'Symptoms', 'Physical exam', 'Markers'], value: shortcut.reasons }), // TODO: has to be multi-selectable
+			createSubfield_StaticText(opts, ']')
+		];
+    } else{
+		console.log('structuredField shortcut type ' + type + ' not supported');
+		return null;
+	}
+
     console.log('createStructuredField: nodes is ' + nodes);
 
+    const shortcutConst = shortcut;
     let sf = Slate.Block.create({
         type:  opts.typeStructuredField,
         nodes: nodes,
         data: {
-            shortcut
+            shortcutConst
         }
     });
 
@@ -300,13 +328,13 @@ function createInlineBlock(text = '') {
  * @param {Slate.Transform} transform
  * @return {Slate.Transform}
  */
-function insertStructuredField(opts, transform) {
+function insertStructuredField(opts, transform, type) {
     const { state } = transform;
-	console.log("insertStructuredField: " + state.selection.startKey);
+	console.log("insertStructuredField: " + state.selection.startKey); 
     if (!state.selection.startKey) return false;
 
     // Create the structured-field node
-    const sf = createStructuredField(opts, 'staging');
+    const sf = createStructuredField(opts, type);
 
 	console.log("[insertStructuredField] sf");
 	console.log(sf);
@@ -322,7 +350,8 @@ function StructuredField(opts) {
     opts = opts || {};
     opts.typeStructuredField = opts.typeStructuredField || 'structured_field';
     opts.typeSubfieldDropdown = opts.typeSubfieldDropdown || 'sf_subfield_dropdown';
-	opts.typeSubfieldStaticText = opts.typeSubfieldStaticText || 'sf_subfield_statictext';
+    opts.typeSubfieldStaticText = opts.typeSubfieldStaticText || 'sf_subfield_statictext';
+    var type = 'staging'; // this needs to be declared to bind it below, but it doesn't come from here.
 
     /**
      * Is the selection in a structured field
@@ -504,7 +533,7 @@ function StructuredField(opts) {
         },
 
         transforms: {
-            insertStructuredField:     insertStructuredField.bind(null, opts)
+            insertStructuredField:     insertStructuredField.bind(null, opts)//, type) adding param breaks the insertion, at state.selection.startKey 'selection' is null
         }
     };
 }
@@ -527,13 +556,14 @@ class FluxNotesEditor extends React.Component {
    // do not use onKeyDown, use auto-replace plugin, add to existing global 'plugins' list
    plugins = [
         structuredFieldPlugin,
-     //   suggestionsPlugin,
+        suggestionsPlugin,
         AutoReplace({
             trigger: '[',
             before: /(#staging)/i,
             transform: (transform, e, data, matches) => {
                 // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
-                return structuredFieldPlugin.transforms.insertStructuredField(transform); 
+                return structuredFieldPlugin.transforms.insertStructuredField(transform, 'staging'); 
+                //#staging[T2 N1 M1 ]
             }
         }),
         AutoReplace({
@@ -541,9 +571,35 @@ class FluxNotesEditor extends React.Component {
             before: /(#progression)/i,
             transform: (transform, e, data, matches) => {
                 // need to use Transform object provided to this method, which AutoReplace .apply()s after return.
-                return structuredFieldPlugin.transforms.insertStructuredField(transform); 
+                return structuredFieldPlugin.transforms.insertStructuredField(transform, 'progression'); 
+                //#progression[Stable based on Imaging, Symptoms]
             }
-        })
+		}),
+		AutoReplace({
+			trigger: 'space',
+			before: /(@NAME)/i,
+			transform: (transform, e, data, matches) => {
+				const newTrans = transform.insertText(`${this.props.patient.name} `);
+				return newTrans;
+			}
+		}),
+		AutoReplace({
+			trigger: 'space',
+			before: /(@AGE)/i,
+			transform: (transform, e, data, matches) => {
+		//		const newTrans = transform.insertText(`${this.props.data.patient.age}`);
+				const newTrans = transform.insertText(`${this.state.patient.shrId}`); //gotta ask how to access patient: this., this.state., this.props. all fail
+				return newTrans;
+			}
+		}),
+		AutoReplace({
+			trigger: 'space',
+			before: /(@GENDER)/i,
+			transform: (transform, e, data, matches) => {
+				const newTrans = transform.insertText(`${this.props.data.patient.gender} `);
+				return newTrans;
+			}
+		})
    ];
 
     onChange = (state) => {
@@ -720,13 +776,13 @@ class FluxNotesEditor extends React.Component {
 					schema={schema}
 				/>
                
+ <SuggestionPortal 
+   state={this.state.state} />
                 
 			</div>
 		  </Paper>
 		  </div>
 		);
-// <SuggestionPortal 
-//                state={this.state.state} />
     }
 }
 

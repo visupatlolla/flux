@@ -8,6 +8,7 @@
     "font-awesome": "^4.7.0",
     "immutable": "^3.8.1",
     "interact.js": "^1.2.8",
+    "lodash": "^4.17.4",
     "material-ui": "^0.18.0",
     "moment": "^2.18.1",
     "positions": "^1.6.1",

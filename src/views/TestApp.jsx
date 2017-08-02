@@ -158,7 +158,7 @@ class TestApp extends Component {
                                     // Properties
                                     currentShortcut={this.state.currentShortcut}
                                     itemToBeInserted={this.state.SummaryItemToInsert}
-                                    patient={this.state.patient}
+                                    patient={this.state.patient} //being passed in to FluxNotesEditor
                                 />
                             </Col>
                             <Col sm={3}>
