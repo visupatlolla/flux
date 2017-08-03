@@ -62,17 +62,47 @@ const suggestions = [
     suggestion: '@Johnnycake' // Can be string or react component 
   }
 ];
+function getCurrentWord(text, index, initialIndex) {
+  if (index === initialIndex) {
+    return { start: getCurrentWord(text, index - 1, initialIndex), end: getCurrentWord(text, index + 1, initialIndex) }
+  }
+  if (text[index] === " " || text[index] === "@" || text[index] === undefined) {
+    return index
+  }
+  if (index < initialIndex) {
+    return getCurrentWord(text, index - 1, initialIndex)
+  }
+  if (index > initialIndex) {
+    return getCurrentWord(text, index + 1, initialIndex)
+  }
+}
 
 const suggestionsPlugin = SuggestionsPlugin({
   trigger: '@',
   capture: /@([\w]*)/,
   suggestions,
   onEnter: (suggestion) => {
+	const { state } = this.state
 	// Modify your state up to your use-cases 
 	console.log("Suggestion being triggered! TORCH------------------------");
 	console.log("Suggestion being triggered! TORCH-----------------------");
 	console.log("Suggestion being triggered! TORCH----------------------");
-    return 'modifiedState'
+	 const { anchorText, anchorOffset } = state
+
+        const text = anchorText.text
+
+        let index = { start: anchorOffset - 1, end: anchorOffset }
+
+        if (text[anchorOffset - 1] !== '@') {
+          index = getCurrentWord(text, anchorOffset - 1, anchorOffset - 1)
+        }
+
+        const newText = `${text.substring(0, index.start)}${suggestion.value} `
+    return state
+          .transform()
+          .deleteBackward(anchorOffset)
+          .insertText(newText)
+          .apply()
   }
 });
  
@@ -771,7 +801,7 @@ class FluxNotesEditor extends React.Component {
 				<Slate.Editor
 					placeholder={'Enter your clinical note here or choose a template to start from...'}
                     plugins={this.plugins}
-					state={state}
+					state={this.state.state}
 					onChange={this.onChange}
 					schema={schema}
 				/>
